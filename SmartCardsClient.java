@@ -99,6 +99,14 @@ class CardCase {
     m_cards.add(cardState);
   }
 
+  public void setName(final String name) {
+    if (name == null) {
+      throw new NullPointerException("Null name");
+    }
+
+    m_name = name;
+  }
+
   public String getName() {
     return m_name;
   }
@@ -112,6 +120,30 @@ class CardCase {
       throw new NullPointerException("Null description of card-case");
     }
     m_description = description;
+  }
+
+  public String getDescription() {
+    if (m_description == null) {
+      return "";
+    }
+
+    return m_description;
+  }
+
+  public void removeCard(String question) {
+    if (question == null) {
+      throw new NullPointerException("Null name");
+    }
+
+    ArrayList<CardState> newCards = new ArrayList<CardState>();
+
+    for(int i = 0; i < m_cards.size(); ++i) {
+      if (!m_cards.get(i).getQuestion().equals(question)) {
+        newCards.add(m_cards.get(i));
+      }
+    }
+
+    m_cards = newCards;
   }
 
   public ArrayList<CardState> getCards() {
@@ -171,6 +203,7 @@ public class SmartCardsClient extends WindowAdapter {
     Box buttonBox = new Box(2);
     buttonBox.setBackground(Color.white);
     JButton editButton = new JButton("Edit");
+    editButton.addActionListener(new EditKitListener());
     JButton studyButton = new JButton("Study");
 
     buttonBox.add(BorderLayout.NORTH, editButton);
@@ -258,10 +291,6 @@ public class SmartCardsClient extends WindowAdapter {
     m_main.setJMenuBar(menuBar);
   }
 
-  public void windowClosing(WindowEvent e) {
-    //There is sych after closing
-  }
-
   private CardCase findCardCase(String name) {
     CardCase newCase = null;
     for (int i = 0 ; i < m_cases.size(); ++i) {
@@ -272,6 +301,305 @@ public class SmartCardsClient extends WindowAdapter {
 
     return newCase;
   }
+
+  public void windowClosing(WindowEvent e) {
+    //There is sych after closing
+  }
+
+  class KitSettingsWindow extends WindowAdapter {
+    private JFrame m_editWindow;
+    private JTextField m_nameKit;
+    private JTextArea m_descriptionKit;
+    private CardCase m_thisCase;
+    private ArrayList<String> m_nameList;
+    private Thread m_checker;
+    private boolean m_noMistakes = false;
+
+    public KitSettingsWindow(final CardCase theCase) {
+      m_editWindow = new JFrame("Kit Settings");
+      m_nameKit = new JTextField();
+      m_descriptionKit = new JTextArea();
+      m_thisCase = theCase;
+      m_checker = new Thread(new MyEditChecker());
+
+      m_nameList = new ArrayList<String>();
+      for (int k = 0; k < m_cases.size(); ++k) {
+        m_nameList.add(m_cases.get(k).getName());
+      }
+    }
+
+    public void go() {
+      Font buttonFont = new Font("Bree", Font.BOLD, 16);
+      Font listFont = new Font("Bree", Font.BOLD, 20);
+      Font labelFont = new Font("Bree", Font.BOLD, 18);
+      Font textFont = new Font("Bree", Font.BOLD, 14);
+
+      m_editWindow.setSize(400, 500);
+      m_editWindow.addWindowListener(this);
+      m_editWindow.setBackground(Color.white);
+
+      JPanel nameLabelPane = new JPanel();
+      nameLabelPane.setBackground(Color.white);
+      JLabel nameLabel = new JLabel("Kit Settings");
+      nameLabel.setFont(labelFont);
+      nameLabelPane.add(nameLabel);
+
+      JPanel settingPanel = new JPanel();
+      settingPanel.setLayout(new BoxLayout(settingPanel, BoxLayout.Y_AXIS));
+      settingPanel.setBackground(Color.white);
+
+      JPanel globalNamePanel = new JPanel();
+      globalNamePanel.setBackground(Color.white);
+      globalNamePanel.setLayout(new BoxLayout(globalNamePanel, BoxLayout.Y_AXIS));
+
+      JPanel namePanel =  new JPanel();
+      namePanel.setBackground(Color.white);
+      JLabel nameKitLabel = new JLabel("Name: ");
+      nameKitLabel.setFont(buttonFont);
+      m_nameKit.setPreferredSize(new Dimension(300, 20));
+      m_nameKit.setText(m_thisCase.getName());
+      m_nameKit.setFont(textFont);
+
+      namePanel.add(nameKitLabel);
+      namePanel.add(m_nameKit);
+
+      globalNamePanel.add(nameLabelPane);
+      globalNamePanel.add(namePanel);
+
+      JPanel sizePanel = new JPanel();
+      sizePanel.setBackground(Color.white);
+      sizePanel.setLayout(new BorderLayout());
+      JPanel labelPanel = new JPanel();
+      labelPanel.setBackground(Color.white);
+      JButton checkCardsButton = new JButton("Cards settings");
+      checkCardsButton.setFont(buttonFont);
+      //checkCardsButton.addActionListener(new CheckCardsListener());
+      JLabel sizeLabel = new JLabel();
+      sizeLabel.setFont(buttonFont);
+      sizeLabel.setText("Size: " + Integer.toString(m_thisCase.getSize()));
+      labelPanel.add(sizeLabel);
+      labelPanel.add(checkCardsButton);
+
+      sizePanel.add(labelPanel);
+
+      JPanel descrPanel = new JPanel();
+      descrPanel.setLayout(new BorderLayout());
+      descrPanel.setBackground(Color.white);
+      JLabel descrLabel = new JLabel("Description:");
+      descrLabel.setFont(buttonFont);
+      m_descriptionKit.setText(m_thisCase.getDescription());
+      m_descriptionKit.setFont(textFont);
+      JScrollPane descrScroll = new JScrollPane(m_descriptionKit);
+      descrScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+      descrScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+      descrPanel.add(BorderLayout.NORTH, descrLabel);
+      descrPanel.add(BorderLayout.CENTER, descrScroll);
+
+      JPanel buttonPanel = new JPanel();
+      buttonPanel.setBackground(Color.white);
+      buttonPanel.setLayout(new BorderLayout());
+      JButton saveButton = new JButton("Save");
+      saveButton.setFont(buttonFont);
+      saveButton.addActionListener(new SaveListener());
+      JButton deleteButton = new JButton("Delete Kit");
+      deleteButton.setFont(buttonFont);
+      deleteButton.addActionListener(new DeleteListener());
+
+      buttonPanel.add(BorderLayout.NORTH, deleteButton);
+      buttonPanel.add(BorderLayout.SOUTH, saveButton);
+
+      settingPanel.add(globalNamePanel);
+      settingPanel.add(sizePanel);
+      settingPanel.add(descrPanel);
+
+      Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
+      int x = (int) (dim.getWidth() / 2 - m_editWindow.getWidth() / 2);
+      int y = (int) (dim.getHeight() / 2 - m_editWindow.getHeight() / 2);
+      m_editWindow.setLocation(x, y);
+      m_editWindow.setResizable(false);
+      m_editWindow.setVisible(true);
+
+      m_editWindow.add(BorderLayout.NORTH, nameLabelPane);
+      m_editWindow.add(BorderLayout.CENTER, settingPanel);
+      m_editWindow.add(BorderLayout.SOUTH, buttonPanel);
+
+      m_checker.start();
+    }
+
+    public void windowClosing(WindowEvent event) {
+      m_main.setEnabled(true);
+      m_checker.stop();
+    }
+
+    class MyEditChecker implements Runnable {
+      private boolean nameIsChanged = false;
+      private boolean descrIsChanged = true;
+      private String lastName = "";
+      private String lastDescr = "";
+      private boolean nameTrue = false;
+      private boolean descrTrue = false;
+
+      public void run() {
+        String testName = "";
+        String testDescr = "";
+        while (true) {
+          testName = m_nameKit.getText();
+          testDescr = m_descriptionKit.getText();
+
+          if ((testName != null) && (testDescr != null)) {
+            testName = testName.trim();
+            testDescr = testDescr.trim();
+
+            if (!lastName.equals(testName)) {
+              nameIsChanged = true;
+            }
+
+            if (!lastDescr.equals(testDescr)) {
+              descrIsChanged = true;
+            }
+
+            if (nameIsChanged) {
+              lastName = testName;
+              if (((testName.length() > 30) || (m_nameList.contains(testName)) && !testName.equals(m_thisCase.getName()))) {
+                m_nameKit.setBackground(new Color(255, 80, 80));
+                nameTrue = false;
+              } else if ((!nameTrue) || (testName.length() == 0)) {
+                if ((testName.length() == 0)) {
+                  nameTrue = false;
+                } else {
+                  nameTrue = true;
+                }
+                m_nameKit.setBackground(new Color(255, 255, 255));
+              }
+
+              nameIsChanged = false;
+            }
+
+            if (descrIsChanged) {
+              lastDescr = testDescr;
+              if ((testDescr.length() > 120)) {
+                if (descrTrue) {
+                  m_descriptionKit.setBackground(new Color(255, 80, 80));
+                  descrTrue = false;
+                }
+              } else if (!descrTrue) {
+                m_descriptionKit.setBackground(new Color(255, 255, 255));
+                descrTrue = true;
+              }
+
+              descrIsChanged = false;
+            }
+
+            if (descrTrue && nameTrue) {
+              m_noMistakes = true;
+            } else {
+              m_noMistakes = false;
+            }
+          }
+        }
+      }
+    };
+
+    class SaveListener implements ActionListener {
+      public void actionPerformed(ActionEvent event) {
+        if (m_noMistakes) {
+          String name = m_nameKit.getText();
+          if (name != null) {
+            name = name.trim();
+            m_thisCase.setName(name);
+          }
+
+          String descr = m_descriptionKit.getText();
+          if (descr != null) {
+            descr = descr.trim();
+            m_thisCase.setDescription(descr);
+          }
+
+          m_main.setEnabled(true);
+          m_editWindow.dispose();
+
+          m_checker.stop();
+          updateList();
+        }
+      }
+    };
+
+    class DeleteListener extends WindowAdapter implements ActionListener {
+      private JDialog m_acceptenceDia;
+      private JFrame owner;
+      private boolean m_acceptence = false;
+
+      public void actionPerformed(ActionEvent event) {
+        m_editWindow.setEnabled(false);
+
+        Font buttonFont = new Font("Bree", Font.BOLD, 16);
+        Font listFont = new Font("Bree", Font.BOLD, 20);
+        Font labelFont = new Font("Bree", Font.BOLD, 18);
+        Font textFont = new Font("Bree", Font.BOLD, 14);
+
+        m_acceptenceDia = new JDialog(m_editWindow);
+        JPanel buttomPanel = new JPanel();
+        buttomPanel.setLayout(new BoxLayout(buttomPanel, BoxLayout.Y_AXIS));
+
+        JButton cancelButton = new JButton("Cancel");
+        cancelButton.addActionListener(new CancelListener());
+        cancelButton.setFont(buttonFont);
+
+        JButton acceptButton = new JButton("Ok");
+        acceptButton.addActionListener(new OkListener());
+        acceptButton.setFont(buttonFont);
+
+        buttomPanel.add(cancelButton);
+        buttomPanel.add(acceptButton);
+
+        m_acceptenceDia.add(buttomPanel);
+        m_acceptenceDia.setVisible(true);
+
+        if (m_acceptence) {
+          //removeCardCase(m_thisCase.getName());
+        }
+      }
+
+      public void windowClosing(WindowEvent ev) {
+        m_editWindow.setEnabled(true);
+      }
+
+      class CancelListener implements ActionListener {
+        public void actionPerformed(ActionEvent event) {
+          m_acceptence = false;
+          m_acceptenceDia.dispose();
+          m_editWindow.setEnabled(true);
+        }
+      };
+
+      class OkListener implements ActionListener {
+        public void actionPerformed(ActionEvent event) {
+          m_acceptence = true;
+          m_acceptenceDia.dispose();
+          m_editWindow.setEnabled(true);
+          updateList();
+          m_editWindow.dispose();
+          m_main.setEnabled(true);
+        }
+      };
+    };
+  };
+
+  class EditKitListener implements ActionListener {
+    private KitSettingsWindow m_window;
+
+    public void actionPerformed(ActionEvent event) {
+      if ((m_cases.size() > 0) && (m_casesList.getSelectedValue() != null)) {
+        String name = (String) m_casesList.getSelectedValue();
+        CardCase thisCase = findCardCase(name);
+
+        m_window = new KitSettingsWindow(thisCase);
+        m_window.go();
+        m_main.setEnabled(false);
+      }
+    }
+
+  };
 
   class ListSelectListener implements ListSelectionListener {
     public void valueChanged(ListSelectionEvent lse) {
@@ -421,9 +749,15 @@ public class SmartCardsClient extends WindowAdapter {
 
     class ChoosedCaseListener implements ActionListener {
       public void actionPerformed(ActionEvent event) {
-        String name = (String) m_caseBox.getSelectedItem();
-        m_choosed = findCardCase(name);
-        updateQuestionList();
+        if (m_caseBox.getSelectedItem() != null) {
+          String name = (String) m_caseBox.getSelectedItem();
+          m_choosed = findCardCase(name);
+          updateQuestionList();
+
+          m_checker.stop();
+          m_checker = new Thread(new MyFieldChecer());
+          m_checker.start();
+        }
       }
     };
 
@@ -437,21 +771,21 @@ public class SmartCardsClient extends WindowAdapter {
           question = m_questionArea.getText();
           if (question != null) {
             question = question.trim();
-          }
-          if ((!question.equals(lastQuestion)) && (question != null)) {
-            if ((m_questionList.contains(question)) || (question.length() == 0)) {
-              if (question.length() != 0) {
-                m_questionArea.setBackground(new Color(255, 80, 80));
+            if ((!question.equals(lastQuestion)) && (question != null)) {
+              if ((m_questionList.contains(question)) || (question.length() == 0)) {
+                if (question.length() != 0) {
+                  m_questionArea.setBackground(new Color(255, 80, 80));
+                } else {
+                  m_questionArea.setBackground(new Color(255, 255, 255));
+                }
+                m_noMistakes = false;
               } else {
                 m_questionArea.setBackground(new Color(255, 255, 255));
+                m_noMistakes = true;
               }
-              m_noMistakes = false;
-            } else {
-              m_questionArea.setBackground(new Color(255, 255, 255));
-              m_noMistakes = true;
-            }
 
-            lastQuestion = question;
+              lastQuestion = question;
+            }
           }
         }
       }
@@ -552,7 +886,7 @@ public class SmartCardsClient extends WindowAdapter {
       m_newKitFrame.getContentPane().add(BorderLayout.CENTER, addFormPanel);
       m_newKitFrame.getContentPane().add(BorderLayout.SOUTH, saveButton);
 
-      m_newKitFrame.setSize(400, 500);
+      m_newKitFrame.setSize(400, 400);
       Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
       int x = (int) (dim.getWidth() / 2 - m_newKitFrame.getWidth() / 2);
       int y = (int) (dim.getHeight() / 2 - m_newKitFrame.getHeight() / 2);
