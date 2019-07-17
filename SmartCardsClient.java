@@ -34,7 +34,7 @@ class Account implements Serializable {
   }
 };
 
-class Card {
+class Card implements Serializable {
   private String m_question;
   private String m_answer;
 
@@ -56,7 +56,7 @@ class Card {
   }
 };
 
-class CardState {
+class CardState implements Serializable {
   private Card m_card;
   private Date m_checkedDate;
   private Date m_checkDate;
@@ -76,7 +76,7 @@ class CardState {
   }
 };
 
-class CardCase {
+class CardCase implements Serializable {
   private String m_name;
   private String m_description;
   private ArrayList<CardState> m_cards;
@@ -149,6 +149,16 @@ class CardCase {
   public ArrayList<CardState> getCards() {
     return m_cards;
   }
+
+  public String [] getCardList() {
+    String [] cardList = new String[m_cards.size()];
+    for (int i = 0; i < m_cards.size(); i++) {
+      cardList[i] = m_cards.get(i).getQuestion();
+    }
+    Arrays.sort(cardList);
+
+    return cardList;
+  }
 };
 
 public class SmartCardsClient extends WindowAdapter {
@@ -157,10 +167,11 @@ public class SmartCardsClient extends WindowAdapter {
   private JList<String> m_casesList;
   private ArrayList<CardCase> m_cases;
   private Account m_account;
+  private File m_path;
 
   public SmartCardsClient() {
     m_cases = new ArrayList<CardCase>(0);
-
+    setUpFileSystem();
     //setAccount();
     //setUpNetworking();
   }
@@ -168,7 +179,7 @@ public class SmartCardsClient extends WindowAdapter {
   public void go() {
     m_main = new JFrame("Smart Cards");
     m_main.setEnabled(true);
-    m_main.setSize(640, 500);
+    m_main.setSize(550, 300);
     m_main.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     m_main.addWindowListener(this);
 
@@ -176,13 +187,40 @@ public class SmartCardsClient extends WindowAdapter {
     setButtons();
     setMenuBar();
 
-    Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
-    int x = (int) (dim.getWidth() / 2 - m_main.getWidth() / 2);
-    int y = (int) (dim.getHeight() / 2 - m_main.getHeight() / 2);
-    m_main.setBackground(Color.white);
-    m_main.setLocation(x, y);
+    frameOnCenter(m_main);
     m_main.setResizable(false);
     m_main.setVisible(true);
+  }
+
+  private void setUpFileSystem() {
+   /* if accaunt == guest ...{
+
+    } else {
+
+    }*/
+
+    m_path = new File("guest.ser");
+    try {
+      if (!m_path.exists()) {
+        m_path.createNewFile();
+      } else {
+        ObjectInputStream instream = new ObjectInputStream(new FileInputStream(m_path));
+        m_cases = (ArrayList<CardCase>) instream.readObject();
+        instream.close();
+      }
+    } catch(Exception ex) {
+      ex.printStackTrace();
+    }
+  }
+
+  private void synch() {
+    try {
+        ObjectOutputStream outstream = new ObjectOutputStream(new FileOutputStream(m_path));
+        outstream.writeObject(m_cases);
+        outstream.close();
+    } catch(IOException ex) {
+      ex.printStackTrace();
+    }
   }
 
   private void setUpList() {
@@ -302,8 +340,35 @@ public class SmartCardsClient extends WindowAdapter {
     return newCase;
   }
 
+  private void removeCardCase(String name) {
+    ArrayList<CardCase> newCases = new ArrayList<CardCase>();
+    CardCase removedCardCase = findCardCase(name);
+    for (int i = 0; i < m_cases.size(); ++i) {
+      if (!m_cases.get(i).getName().equals(removedCardCase.getName())) {
+        newCases.add(m_cases.get(i));
+      }
+    }
+
+    m_cases = newCases;
+  }
+
+  public void frameOnCenter(JFrame frame) {
+    Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
+    int x = (int) (dim.getWidth() / 2 - frame.getWidth() / 2);
+    int y = (int) (dim.getHeight() / 2 - frame.getHeight() / 2);
+    frame.setLocation(x, y);
+  }
+
+  public JScrollPane createScrollPane(JList<String> obj) {
+    JScrollPane descrScroll = new JScrollPane(obj);
+    descrScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+    descrScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+
+    return descrScroll;
+  }
+
   public void windowClosing(WindowEvent e) {
-    //There is sych after closing
+    synch();
   }
 
   class KitSettingsWindow extends WindowAdapter {
@@ -334,7 +399,7 @@ public class SmartCardsClient extends WindowAdapter {
       Font labelFont = new Font("Bree", Font.BOLD, 18);
       Font textFont = new Font("Bree", Font.BOLD, 14);
 
-      m_editWindow.setSize(400, 500);
+      m_editWindow.setSize(400, 300);
       m_editWindow.addWindowListener(this);
       m_editWindow.setBackground(Color.white);
 
@@ -373,10 +438,10 @@ public class SmartCardsClient extends WindowAdapter {
       labelPanel.setBackground(Color.white);
       JButton checkCardsButton = new JButton("Cards settings");
       checkCardsButton.setFont(buttonFont);
-      //checkCardsButton.addActionListener(new CheckCardsListener());
+      checkCardsButton.addActionListener(new CheckCardsListener());
       JLabel sizeLabel = new JLabel();
       sizeLabel.setFont(buttonFont);
-      sizeLabel.setText("Size: " + Integer.toString(m_thisCase.getSize()));
+      sizeLabel.setText("Size: " + Integer.toString(m_thisCase.getSize()) + "                             ");
       labelPanel.add(sizeLabel);
       labelPanel.add(checkCardsButton);
 
@@ -389,6 +454,7 @@ public class SmartCardsClient extends WindowAdapter {
       descrLabel.setFont(buttonFont);
       m_descriptionKit.setText(m_thisCase.getDescription());
       m_descriptionKit.setFont(textFont);
+      m_descriptionKit.setLineWrap(true);
       JScrollPane descrScroll = new JScrollPane(m_descriptionKit);
       descrScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
       descrScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
@@ -412,10 +478,8 @@ public class SmartCardsClient extends WindowAdapter {
       settingPanel.add(sizePanel);
       settingPanel.add(descrPanel);
 
-      Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
-      int x = (int) (dim.getWidth() / 2 - m_editWindow.getWidth() / 2);
-      int y = (int) (dim.getHeight() / 2 - m_editWindow.getHeight() / 2);
-      m_editWindow.setLocation(x, y);
+      frameOnCenter(m_editWindow);
+
       m_editWindow.setResizable(false);
       m_editWindow.setVisible(true);
 
@@ -430,6 +494,106 @@ public class SmartCardsClient extends WindowAdapter {
       m_main.setEnabled(true);
       m_checker.stop();
     }
+
+    class CheckCardWindow extends WindowAdapter {
+      private JFrame m_cardsWindow;
+      private JList<String> m_cardsList;
+      private String m_selectedElement;
+
+      public CheckCardWindow() {
+        m_cardsWindow = new JFrame("Cards in " + m_thisCase.getName());
+        m_cardsWindow.addWindowListener(this);
+
+        m_cardsList = new JList<String>(m_thisCase.getCardList());
+      }
+
+      public void go() {
+        Font buttonFont = new Font("Bree", Font.BOLD, 16);
+        Font listFont = new Font("Bree", Font.BOLD, 20);
+        Font labelFont = new Font("Bree", Font.BOLD, 18);
+        Font textFont = new Font("Bree", Font.BOLD, 14);
+
+        m_cardsWindow.setBackground(Color.white);
+        m_cardsWindow.setSize(400, 300);
+        frameOnCenter(m_cardsWindow);
+        JPanel namePanel = new JPanel();
+        namePanel.setBackground(Color.white);
+        JLabel nameLabe = new JLabel(m_thisCase.getName());
+        nameLabe.setFont(labelFont);
+        namePanel.add(nameLabe);
+
+        JScrollPane scrollList = createScrollPane(m_cardsList);
+        m_cardsList.setSelectionMode​(ListSelectionModel.SINGLE_SELECTION);
+        m_cardsList.addListSelectionListener(new ListSelectedListener());
+        m_cardsList.setFont(listFont);
+
+        JPanel listPanel = new JPanel();
+        listPanel.setLayout(new BorderLayout());
+        listPanel.setBackground(Color.white);
+
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.Y_AXIS));
+        buttonPanel.setBackground(Color.white);
+
+        JButton editButton = new JButton("Edit");
+        editButton.setFont(buttonFont);
+        //editButton.addActionListener(new EditCardListener());
+
+        JButton deleteButton = new JButton("Remove");
+        deleteButton.setFont(buttonFont);
+        //deleteButton.addActionListener(new RemoveCardListener());
+
+        buttonPanel.add(editButton);
+        buttonPanel.add(deleteButton);
+
+        JButton saveButton = new JButton("Save");
+        saveButton.setFont(buttonFont);
+        saveButton.addActionListener(new SaveCardsListener());
+
+        m_cardsWindow.add(BorderLayout.NORTH, namePanel);
+        m_cardsWindow.add(BorderLayout.EAST, buttonPanel);
+        m_cardsWindow.add(BorderLayout.CENTER, scrollList);
+        m_cardsWindow.add(BorderLayout.SOUTH, saveButton);
+        m_cardsWindow.setResizable(false);
+        m_cardsWindow.setVisible(true);
+      }
+
+      public void windowClosing(WindowEvent event) {
+        m_editWindow.setEnabled(true);
+      }
+
+      class SaveCardsListener implements ActionListener {
+        public void actionPerformed(ActionEvent event) {
+          m_cardsWindow.dispose();
+          m_editWindow.setEnabled(true);
+          //Только тут сохранить удаление карт, но обновлять лист в данном окне после удалени в данном окне
+        }
+      };
+
+      class ListSelectedListener implements ListSelectionListener {
+        public void valueChanged(ListSelectionEvent lse) {
+          if (!lse.getValueIsAdjusting()) {
+            if (m_cardsList.getSelectedValue() != null) {
+              m_selectedElement = (String) m_cardsList.getSelectedValue();
+            }
+          }
+        }
+      };
+    };
+
+    class CheckCardsListener implements ActionListener {
+      private CheckCardWindow m_checkCrardWindow;
+
+      public void actionPerformed(ActionEvent eve) {
+        if (m_thisCase.getSize() > 0) {
+          m_editWindow.setEnabled(false);
+          m_checkCrardWindow = new CheckCardWindow();
+          m_checkCrardWindow.go();
+        } else {
+          // window no cards
+        }
+      }
+    };
 
     class MyEditChecker implements Runnable {
       private boolean nameIsChanged = false;
@@ -525,9 +689,8 @@ public class SmartCardsClient extends WindowAdapter {
     };
 
     class DeleteListener extends WindowAdapter implements ActionListener {
-      private JDialog m_acceptenceDia;
+      private JFrame m_acceptenceDia;
       private JFrame owner;
-      private boolean m_acceptence = false;
 
       public void actionPerformed(ActionEvent event) {
         m_editWindow.setEnabled(false);
@@ -537,9 +700,33 @@ public class SmartCardsClient extends WindowAdapter {
         Font labelFont = new Font("Bree", Font.BOLD, 18);
         Font textFont = new Font("Bree", Font.BOLD, 14);
 
-        m_acceptenceDia = new JDialog(m_editWindow);
+        m_acceptenceDia = new JFrame("Confirm deletion");
+        m_acceptenceDia.setSize(372, 150);
+
+        frameOnCenter(m_acceptenceDia);
+        m_acceptenceDia.setResizable(false);
+
+        JPanel panelWarn = new JPanel();
+        panelWarn.setBackground(Color.white);
+        JLabel atempLabel = new JLabel("Warning!");
+        atempLabel.setFont(labelFont);
+        panelWarn.add(atempLabel);
+
+        JPanel panelText1 = new JPanel();
+        panelText1.setLayout(new BoxLayout(panelText1, BoxLayout.Y_AXIS));
+        panelText1.setBackground(Color.white);
+
+        JLabel textLabel1 = new JLabel("  Kit " + m_thisCase.getName());
+        textLabel1.setFont(buttonFont);
+        JLabel textLabel2 = new JLabel("  Will be deleted forever!");
+        textLabel2.setFont(buttonFont);
+
+        panelText1.add(textLabel1);
+        panelText1.add(textLabel2);
+
         JPanel buttomPanel = new JPanel();
-        buttomPanel.setLayout(new BoxLayout(buttomPanel, BoxLayout.Y_AXIS));
+        buttomPanel.setBackground(Color.white);
+        buttomPanel.setLayout(new BorderLayout());
 
         JButton cancelButton = new JButton("Cancel");
         cancelButton.addActionListener(new CancelListener());
@@ -549,15 +736,14 @@ public class SmartCardsClient extends WindowAdapter {
         acceptButton.addActionListener(new OkListener());
         acceptButton.setFont(buttonFont);
 
-        buttomPanel.add(cancelButton);
-        buttomPanel.add(acceptButton);
+        buttomPanel.add(BorderLayout.NORTH, cancelButton);
+        buttomPanel.add(BorderLayout.SOUTH, acceptButton);
 
-        m_acceptenceDia.add(buttomPanel);
+        m_acceptenceDia.add(BorderLayout.NORTH, panelWarn);
+        m_acceptenceDia.add(BorderLayout.CENTER, panelText1);
+        m_acceptenceDia.add(BorderLayout.SOUTH, buttomPanel);
         m_acceptenceDia.setVisible(true);
-
-        if (m_acceptence) {
-          //removeCardCase(m_thisCase.getName());
-        }
+        m_acceptenceDia.setAlwaysOnTop(true);
       }
 
       public void windowClosing(WindowEvent ev) {
@@ -566,7 +752,6 @@ public class SmartCardsClient extends WindowAdapter {
 
       class CancelListener implements ActionListener {
         public void actionPerformed(ActionEvent event) {
-          m_acceptence = false;
           m_acceptenceDia.dispose();
           m_editWindow.setEnabled(true);
         }
@@ -574,12 +759,13 @@ public class SmartCardsClient extends WindowAdapter {
 
       class OkListener implements ActionListener {
         public void actionPerformed(ActionEvent event) {
-          m_acceptence = true;
+          removeCardCase(m_thisCase.getName());
           m_acceptenceDia.dispose();
-          m_editWindow.setEnabled(true);
-          updateList();
-          m_editWindow.dispose();
           m_main.setEnabled(true);
+          m_editWindow.dispose();
+
+          m_checker.stop();
+          updateList();
         }
       };
     };
@@ -660,9 +846,8 @@ public class SmartCardsClient extends WindowAdapter {
       Font fieldFont = new Font("Bree", Font.BOLD, 14);
 
       JFrame newCardFrame = new JFrame("Add Card");
-      //newCardFrame.setResizable(false);
       newCardFrame.addWindowListener(this);
-      newCardFrame.setSize(500, 400);
+      newCardFrame.setSize(500, 350);
       newCardFrame.setBackground(Color.white);
 
       JPanel textPantl = new JPanel();
@@ -717,10 +902,7 @@ public class SmartCardsClient extends WindowAdapter {
       addButton.setFont(buttonFont);
       addButton.addActionListener(new AddCardListener());
 
-      Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
-      int x = (int) (dim.getWidth() / 2 - newCardFrame.getWidth() / 2);
-      int y = (int) (dim.getHeight() / 2 - newCardFrame.getHeight() / 2);
-      newCardFrame.setLocation(x, y);
+      frameOnCenter(newCardFrame);
       newCardFrame.setVisible(true);
 
       newCardFrame.getContentPane().add(BorderLayout.NORTH, chooseCasePanel);
@@ -821,7 +1003,7 @@ public class SmartCardsClient extends WindowAdapter {
 
     public void actionPerformed(ActionEvent event) {
       m_nameList = new ArrayList<String>();
-      m_checker = new Thread(new MyFieldm_checker());
+      m_checker = new Thread(new MyFieldChecker());
 
       for (int k = 0; k < m_cases.size(); ++k) {
         m_nameList.add(m_cases.get(k).getName());
@@ -886,17 +1068,14 @@ public class SmartCardsClient extends WindowAdapter {
       m_newKitFrame.getContentPane().add(BorderLayout.CENTER, addFormPanel);
       m_newKitFrame.getContentPane().add(BorderLayout.SOUTH, saveButton);
 
-      m_newKitFrame.setSize(400, 400);
-      Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
-      int x = (int) (dim.getWidth() / 2 - m_newKitFrame.getWidth() / 2);
-      int y = (int) (dim.getHeight() / 2 - m_newKitFrame.getHeight() / 2);
-      m_newKitFrame.setLocation(x, y);
+      m_newKitFrame.setSize(400, 300);
+      frameOnCenter(m_newKitFrame);
       m_newKitFrame.setVisible(true);
 
       m_checker.start();
     }
 
-    class MyFieldm_checker implements Runnable {
+    class MyFieldChecker implements Runnable {
       private boolean nameIsChanged = false;
       private boolean descrIsChanged = true;
       private String lastName = "";
