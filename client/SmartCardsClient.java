@@ -53,6 +53,10 @@ class Card implements Serializable {
     return m_question;
   }
 
+  public String getAnswer() {
+    return m_answer;
+  }
+
   public Card getCard() {
     return new Card(m_question, m_answer);
   }
@@ -75,6 +79,10 @@ class CardState implements Serializable {
 
   public String getQuestion() {
     return m_card.getQuestion();
+  }
+
+  public String getAnswer() {
+    return m_card.getAnswer();
   }
 
   public Date getCheckedDate() {
@@ -168,6 +176,16 @@ class CardCase implements Serializable {
     Arrays.sort(cardList);
 
     return cardList;
+  }
+
+  public CardState getCard(String question) {
+    for (int i = 0; i < m_cards.size(); ++i) {
+      if (m_cards.get(i).getQuestion().equals(question)) {
+        return m_cards.get(i);
+      }
+    }
+
+    return null;
   }
 
   public void removeCards(ArrayList<String> questionList) {
@@ -600,7 +618,7 @@ public class SmartCardsClient extends WindowAdapter {
 
         JButton editButton = new JButton("Edit");
         editButton.setFont(buttonFont);
-        //editButton.addActionListener(new EditCardListener());
+        editButton.addActionListener(new EditCardListener());
 
         JButton deleteButton = new JButton("Remove");
         deleteButton.setFont(buttonFont);
@@ -643,6 +661,123 @@ public class SmartCardsClient extends WindowAdapter {
       public void windowClosing(WindowEvent event) {
         m_editWindow.setEnabled(true);
       }
+
+      class CardWindow extends WindowAdapter {
+        private JFrame m_editCardFrame;
+        private JTextArea m_questionArea;
+        private JTextArea m_answerArea;
+        private CardState m_thisCard;
+        private CardCase m_thisCase;
+        private String m_startQuestion;
+        private ArrayList<String> m_questionList;
+        private boolean m_noEditMistakes = false;
+
+        public void setUp(final CardCase theCase, final String question) {
+          m_thisCase = theCase;
+
+          m_startQuestion = question;
+          m_thisCard = m_thisCase.getCard(m_startQuestion);
+
+          int size = m_thisCase.getSize();
+          ArrayList<CardState> cards = m_thisCase.getCards();
+          m_questionList = new ArrayList<String>();
+          for (int i = 0; i < cards.size(); ++i) {
+            m_questionList.add(cards.get(i).getQuestion());
+          }
+        }
+
+        public void go() {
+          m_editWindow.setEnabled(false);
+
+          Font buttonFont = new Font("Bree", Font.BOLD, 18);
+          Font labelFont = new Font("Bree", Font.BOLD, 20);
+          Font fieldFont = new Font("Bree", Font.BOLD, 14);
+
+          m_editCardFrame = new JFrame("Card settings");
+          m_editCardFrame.setLayout(new BorderLayout());
+          m_editCardFrame.addWindowListener(this);
+          m_editCardFrame.setSize(500, 350);
+          frameOnCenter(m_editCardFrame);
+          m_editCardFrame.setBackground(Color.white);
+          m_editCardFrame.setResizable(false);
+
+          JPanel textEditPantl = new JPanel();
+          textEditPantl.setLayout(new BoxLayout(textEditPantl, BoxLayout.Y_AXIS));
+          textEditPantl.setBackground(Color.white);
+
+          m_questionArea = new JTextArea();
+          m_questionArea.setFont(fieldFont);
+          m_questionArea.setLineWrap(true);
+          m_questionArea.setText(m_thisCard.getQuestion());
+
+          m_answerArea = new JTextArea();
+          m_answerArea.setFont(fieldFont);
+          m_answerArea.setLineWrap(true);
+          m_answerArea.setText(m_thisCard.getAnswer());
+
+          JPanel chooseCasePanel = new JPanel();
+          chooseCasePanel.setBackground(Color.white);
+
+          JLabel chooseCaseLabel = new JLabel("Card settings");
+          chooseCaseLabel.setFont(labelFont);
+          chooseCasePanel.add(chooseCaseLabel);
+
+          JScrollPane questionScroller = createScrollPane(m_questionArea);
+          JScrollPane answerScroller = createScrollPane(m_answerArea);
+
+          JLabel qestuibLabel = new JLabel("Front card site:");
+          qestuibLabel.setFont(labelFont);
+          qestuibLabel.setBackground(Color.white);
+          textEditPantl.add(qestuibLabel);
+          textEditPantl.add(questionScroller);
+
+          JLabel answerLabel= new JLabel("Back card site:");
+          answerLabel.setFont(labelFont);
+          answerLabel.setBackground(Color.white);
+          textEditPantl.add(answerLabel);
+          textEditPantl.add(answerScroller);
+
+          JButton addButton = new JButton("Save");
+          addButton.setBackground(Color.white);
+          addButton.setFont(buttonFont);
+          addButton.addActionListener(new SaveButtonListener());
+
+          m_editCardFrame.getContentPane().add(BorderLayout.NORTH, chooseCasePanel);
+          m_editCardFrame.getContentPane().add(BorderLayout.CENTER, textEditPantl);
+          m_editCardFrame.getContentPane().add(BorderLayout.SOUTH, addButton);
+
+          m_editCardFrame.setVisible(true);
+        }
+
+        public void windowClosing(WindowEvent event) {
+          m_editWindow.setEnabled(true);
+        }
+
+        class SaveButtonListener implements ActionListener {
+          public void actionPerformed(ActionEvent event) {
+            if (((m_questionList.contains(m_questionArea.getText())) || (m_questionArea.getText().length() == 0)) && (!m_questionArea.getText().equals(m_startQuestion))) {
+              m_noEditMistakes = false;
+            } else {
+              m_noEditMistakes = true;
+            }
+
+            if (m_noEditMistakes) {
+              m_editCardFrame.dispose();
+              m_editWindow.setEnabled(true);
+            }
+          }
+        };
+      };
+
+      class EditCardListener implements ActionListener {
+        private CardWindow m_cardsWindow;
+
+        public void actionPerformed(ActionEvent event) {
+          m_cardsWindow = new CardWindow();
+          m_cardsWindow.setUp(m_thisCase, m_selectedElement);
+          m_cardsWindow.go();
+        }
+      };
 
       class RemoveCardListener implements ActionListener {
         public void actionPerformed(ActionEvent event) {
@@ -884,6 +1019,7 @@ public class SmartCardsClient extends WindowAdapter {
           m_editWindow.dispose();
 
           m_checker.stop();
+          synch();
           updateList();
         }
       };
@@ -919,7 +1055,7 @@ public class SmartCardsClient extends WindowAdapter {
     }
   };
 
-  class NewCardListener extends WindowAdapter implements ActionListener {
+  class NewCardWindow extends WindowAdapter {
     private JTextArea m_questionArea;
     private JTextArea m_answerArea;
     private JComboBox m_caseBox;
@@ -930,7 +1066,7 @@ public class SmartCardsClient extends WindowAdapter {
     private boolean m_noMistakes;
     private ArrayList<String> m_questionList;
 
-    private void setUpNewCardListener() {
+    public void setUp() {
       m_nameCases = new Vector<String>();
       int size = m_cases.size();
       String [] namesArray = new String[size];
@@ -948,10 +1084,13 @@ public class SmartCardsClient extends WindowAdapter {
       String name = (String) m_caseBox.getSelectedItem();
       m_choosed = findCardCase(name);
 
+
       m_noMistakes = false;
+
+      m_checker = new Thread(new MyFieldChecer());
     }
 
-    private void updateQuestionList() {
+    public void updateQuestionList() {
       ArrayList<CardState> CardsInCase = m_choosed.getCards();
       m_questionList = new ArrayList<String>();
       for (int i = 0; i < CardsInCase.size(); ++i) {
@@ -959,7 +1098,7 @@ public class SmartCardsClient extends WindowAdapter {
       }
     }
 
-    private void goAddWindow() {
+    public void go() {
       Font buttonFont = new Font("Bree", Font.BOLD, 18);
       Font labelFont = new Font("Bree", Font.BOLD, 20);
       Font fieldFont = new Font("Bree", Font.BOLD, 14);
@@ -1022,20 +1161,8 @@ public class SmartCardsClient extends WindowAdapter {
       newCardFrame.getContentPane().add(BorderLayout.NORTH, chooseCasePanel);
       newCardFrame.getContentPane().add(BorderLayout.CENTER, textPantl);
       newCardFrame.getContentPane().add(BorderLayout.SOUTH, addButton);
-    }
 
-    public void actionPerformed(ActionEvent event) {
-      if (m_cases.size() > 0) {
-        setUpNewCardListener();
-        goAddWindow();
-        updateQuestionList();
-        m_main.setEnabled(false);
-
-        m_checker = new Thread(new MyFieldChecer());
-        m_checker.start();
-      } else {
-        //noKitsWindow();
-      }
+      m_checker.start();
     }
 
     public void windowClosing(WindowEvent event) {
@@ -1110,6 +1237,24 @@ public class SmartCardsClient extends WindowAdapter {
         }
       }
     };
+  };
+
+  class NewCardListener implements ActionListener {
+    private NewCardWindow m_newCardWindow;
+
+    public void actionPerformed(ActionEvent event) {
+
+      if (m_cases.size() > 0) {
+        m_newCardWindow = new NewCardWindow();
+        m_newCardWindow.setUp();
+        m_newCardWindow.go();
+        m_newCardWindow.updateQuestionList();
+
+        m_main.setEnabled(false);
+      } else {
+        //noKitsWindow();
+      }
+    }
   };
 
   class NewKitListener extends WindowAdapter implements ActionListener {
