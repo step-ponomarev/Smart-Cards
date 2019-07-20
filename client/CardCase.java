@@ -8,6 +8,9 @@ public class CardCase implements Serializable {
   private String m_name;
   private String m_description;
   private ArrayList<CardState> m_cards;
+  private ArrayList<CardState> m_availableCards;
+  private ArrayList<CardState> m_unavailableCards;
+
 
   public CardCase(String newName) {
     if (newName == null) {
@@ -17,6 +20,8 @@ public class CardCase implements Serializable {
     m_name = newName;
     m_description = "";
     m_cards = new ArrayList<CardState>();
+    m_availableCards = new ArrayList<CardState>();
+    m_unavailableCards = new ArrayList<CardState>();
   }
 
   public void add(CardState cardState) {
@@ -25,6 +30,7 @@ public class CardCase implements Serializable {
     }
 
     m_cards.add(cardState);
+    updateCardSets();
   }
 
   public void setName(final String name) {
@@ -72,10 +78,30 @@ public class CardCase implements Serializable {
     }
 
     m_cards = newCards;
+    updateCardSets();
   }
 
   public ArrayList<CardState> getCards() {
     return m_cards;
+  }
+
+  public void updateCardSets() {
+    m_availableCards = new ArrayList<CardState>();
+    m_unavailableCards = new ArrayList<CardState>();
+    Date toDay = new Date();
+
+    for (int i = 0; i < m_cards.size(); ++i) {
+      Date availableDate = m_cards.get(i).getUnlocksDate();
+      if (availableDate.before(toDay)) {
+        m_availableCards.add(m_cards.get(i));
+      } else {
+        m_unavailableCards.add(m_cards.get(i));
+      }
+    }
+  }
+
+  public ArrayList<CardState> getAvailable() {
+    return m_availableCards;
   }
 
   public String [] getCardList() {
@@ -107,6 +133,7 @@ public class CardCase implements Serializable {
     }
 
     m_cards = newCardList;
+    updateCardSets();
   }
 
   public String getChecked(final String card) {

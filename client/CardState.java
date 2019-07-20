@@ -1,10 +1,11 @@
 import java.io.*;
+import java.util.Calendar;
 import java.util.Date;
 
 class CardState implements Serializable {
   private Card m_card;
-  private Date m_checkedDate;
-  private Date m_checkDate;
+  private Calendar m_checkedDate;
+  private Calendar m_checkDate;
 
   public CardState(Card card) {
     if (card == null) {
@@ -12,8 +13,8 @@ class CardState implements Serializable {
     }
 
     m_card = card.getCard();
-    m_checkedDate = new Date();
-    m_checkDate = new Date();
+    m_checkedDate = Calendar.getInstance();
+    m_checkDate = Calendar.getInstance();
   }
 
   public String getQuestion() {
@@ -25,11 +26,19 @@ class CardState implements Serializable {
   }
 
   public Date getCheckedDate() {
-    return m_checkedDate;
+    return m_checkedDate.getTime();
   }
 
   public Date getUnlocksDate() {
-    return m_checkDate;
+    return m_checkDate.getTime();
+  }
+
+  public void setCheckedDate(Calendar date) {
+    m_checkedDate = date;
+  }
+
+  public void setUnlocksDate(Calendar date) {
+    m_checkDate = date;
   }
 
   public void setQuestion(String question) {

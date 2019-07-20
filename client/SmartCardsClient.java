@@ -224,7 +224,7 @@ public class SmartCardsClient extends WindowAdapter {
     public void actionPerformed(ActionEvent event) {
       if (m_casesList.getSelectedValue() != null) {
         CardCase thisCase = findCardCase(m_casesList.getSelectedValue());
-        if (thisCase.getSize() > 0) {
+        if ((thisCase.getSize() > 0) && (thisCase.getAvailable().size() > 0)) {
           m_studyWindow = new StudyKitWindow(m_main, thisCase, m_synchronizator);
           m_studyWindow.go();
         }
