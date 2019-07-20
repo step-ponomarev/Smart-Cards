@@ -1,6 +1,7 @@
 import java.io.*;
 
 import javax.swing.*;
+import javax.swing.border.*;
 import javax.swing.event.*;
 import java.awt.*;
 import java.awt.event.*;
@@ -17,8 +18,10 @@ public class SmartCardsClient extends WindowAdapter {
   private ArrayList<CardCase> m_cases;
   private Account m_account;
   private File m_path;
+  private Thread m_synchronizator;
 
   public SmartCardsClient() {
+    m_synchronizator = new Thread(new SmartCardsSychronizator());
     m_cases = new ArrayList<CardCase>(0);
     setUpFileSystem();
     //setAccount();
@@ -87,11 +90,14 @@ public class SmartCardsClient extends WindowAdapter {
     caseScroller.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
     caseScroller.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
-    Box buttonBox = new Box(2);
+    JPanel buttonBox = new JPanel();
+    Border border = BorderFactory.createLineBorder(new Color(230, 230, 230), 5);
     buttonBox.setBackground(Color.white);
+    buttonBox.setBorder(border);
     JButton editButton = new JButton("Edit");
     editButton.addActionListener(new EditKitListener());
     JButton studyButton = new JButton("Study");
+    studyButton.addActionListener(new KitStudyListener());
 
     buttonBox.add(BorderLayout.NORTH, editButton);
     buttonBox.add(BorderLayout.CENTER, studyButton);
@@ -205,8 +211,26 @@ public class SmartCardsClient extends WindowAdapter {
     synch();
   }
 
-  class KitStudyListener {
+  class SmartCardsSychronizator implements Runnable {
+    public void run() {
+      updateList();
+      synch();
+    }
+  };
 
+  class KitStudyListener implements ActionListener {
+    private StudyKitWindow m_studyWindow;
+
+    public void actionPerformed(ActionEvent event) {
+      if (m_casesList.getSelectedValue() != null) {
+        CardCase thisCase = findCardCase(m_casesList.getSelectedValue());
+        if (thisCase.getSize() > 0) {
+          m_studyWindow = new StudyKitWindow(m_main, thisCase, m_synchronizator);
+          m_studyWindow.go();
+        }
+      }
+
+    }
   };
 
   class EditKitListener implements ActionListener {
@@ -347,6 +371,9 @@ public class SmartCardsClient extends WindowAdapter {
     public void windowClosing(WindowEvent event) {
       m_main.setEnabled(true);
       m_checker.stop();
+
+      m_casesList.clearSelection();
+      updateStatePanel();
     }
 
     class SaveKitListener implements ActionListener {
@@ -364,9 +391,8 @@ public class SmartCardsClient extends WindowAdapter {
             m_thisCase.setDescription(descr);
           }
           m_checker.stop();
-          updateList();
 
-          synch();
+          m_synchronizator.run();
 
           m_main.setEnabled(true);
           m_editWindow.dispose();
@@ -451,8 +477,7 @@ public class SmartCardsClient extends WindowAdapter {
           m_editWindow.dispose();
 
           m_checker.stop();
-          synch();
-          updateList();
+          m_synchronizator.run();
         }
       };
     };
@@ -645,31 +670,33 @@ public class SmartCardsClient extends WindowAdapter {
 
       class RemoveCardListener implements ActionListener {
         public void actionPerformed(ActionEvent event) {
-          String [] newNameList = new String[m_cardNames.length - 1];
-          int j = 0;
-          for (int i = 0; i < m_cardNames.length; ++i) {
-            if (!m_cardNames[i].equals(m_selectedElement)) {
-              newNameList[j] = m_cardNames[i];
-              ++j;
+          if (m_selectedElement != null) {
+            String [] newNameList = new String[m_cardNames.length - 1];
+            int j = 0;
+            for (int i = 0; i < m_cardNames.length; ++i) {
+              if (!m_cardNames[i].equals(m_selectedElement)) {
+                newNameList[j] = m_cardNames[i];
+                ++j;
+              }
             }
+            m_cardNames = newNameList;
+
+            m_removedCards.add(m_selectedElement);
+            m_selectedElement = null;
+
+            m_cardState.setText("  Total cards: " + m_cardNames.length + "  ");
+
+            m_cardsList.setListData(m_cardNames);
+            m_cardsList.revalidate();
+            m_cardsList.repaint();
           }
-          m_cardNames = newNameList;
-
-          m_removedCards.add(m_selectedElement);
-          m_selectedElement = null;
-
-          m_cardState.setText("  Total cards: " + m_cardNames.length + "  ");
-
-          m_cardsList.setListData(m_cardNames);
-          m_cardsList.revalidate();
-          m_cardsList.repaint();
         }
       };
 
       class SaveCardsSettingsListener implements ActionListener {
         public void actionPerformed(ActionEvent event) {
           m_thisCase.removeCards(m_removedCards);
-          synch();
+          m_synchronizator.run();
           m_sizeLabel.setText("Size: " + Integer.toString(m_thisCase.getSize()) + "                             ");
 
           m_cardsWindow.dispose();
@@ -835,6 +862,24 @@ public class SmartCardsClient extends WindowAdapter {
     }
   };
 
+  class NewCardListener implements ActionListener {
+    private NewCardWindow m_newCardWindow;
+
+    public void actionPerformed(ActionEvent event) {
+
+      if (m_cases.size() > 0) {
+        m_newCardWindow = new NewCardWindow();
+        m_newCardWindow.setUp();
+        m_newCardWindow.go();
+        m_newCardWindow.updateQuestionList();
+
+        m_main.setEnabled(false);
+      } else {
+        //noKitsWindow();
+      }
+    }
+  };
+
   class NewCardWindow extends WindowAdapter {
     private JTextArea m_questionArea;
     private JTextArea m_answerArea;
@@ -949,7 +994,7 @@ public class SmartCardsClient extends WindowAdapter {
       m_casesList.clearSelection();
       updateStatePanel();
 
-      synch();
+      m_synchronizator.run();
       m_main.setEnabled(true);
       m_checker.stop();
     }
@@ -1013,28 +1058,10 @@ public class SmartCardsClient extends WindowAdapter {
 
           updateStatePanel(m_choosed);
           updateQuestionList();
-          synch();
+          m_synchronizator.run();
         }
       }
     };
-  };
-
-  class NewCardListener implements ActionListener {
-    private NewCardWindow m_newCardWindow;
-
-    public void actionPerformed(ActionEvent event) {
-
-      if (m_cases.size() > 0) {
-        m_newCardWindow = new NewCardWindow();
-        m_newCardWindow.setUp();
-        m_newCardWindow.go();
-        m_newCardWindow.updateQuestionList();
-
-        m_main.setEnabled(false);
-      } else {
-        //noKitsWindow();
-      }
-    }
   };
 
   class NewKitListener extends WindowAdapter implements ActionListener {
@@ -1204,8 +1231,7 @@ public class SmartCardsClient extends WindowAdapter {
           m_cases.add(newCase);
           m_main.setEnabled(true);
           m_newKitFrame.dispose();
-          updateList();
-          synch();
+          m_synchronizator.run();
         }
       }
     };
