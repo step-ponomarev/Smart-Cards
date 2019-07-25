@@ -162,11 +162,16 @@ public class StudyKitWindow extends WindowAdapter {
     public void actionPerformed(ActionEvent event) {
       if (m_studyingCards.size() != 0) {
         Calendar toDay = Calendar.getInstance();
-        m_thisCard.setCheckedDate(toDay);
 
+        int difference = m_thisCard.getTineDifference();
         Calendar newDate = Calendar.getInstance();
-        newDate.add(5, 2);
+        if (difference == 0) {
+          newDate.add(5, 1);
+        } else {
+          newDate.add(5, difference * 2);
+        }
         m_thisCard.setUnlocksDate(newDate);
+        m_thisCard.setCheckedDate(toDay);
 
         upDateStudyList();
 
@@ -193,19 +198,58 @@ public class StudyKitWindow extends WindowAdapter {
 
   class HardListener implements ActionListener {
     public void actionPerformed(ActionEvent event) {
-      Calendar toDay = Calendar.getInstance();
+      if (m_studyingCards.size() != 0) {
+        Calendar toDay = Calendar.getInstance();
 
-      m_buttonsPanel.removeAll();
-      m_buttonsPanel.repaint();
-      m_buttonsPanel.add(openButton);
+        int difference = m_thisCard.getTineDifference();
+        Calendar newDate = Calendar.getInstance();
+        if (difference == 0) {
+          newDate.add(5, 1);
+        } else {
+          newDate.add(5, difference + 1);
+        }
+        m_thisCard.setUnlocksDate(newDate);
+        m_thisCard.setCheckedDate(toDay);
 
-      m_buttonsPanel.revalidate();
+        upDateStudyList();
+
+        m_questionArea.setText(m_thisCard.getQuestion());
+        m_answerArea.setText("");
+
+        m_buttonsPanel.removeAll();
+        m_buttonsPanel.repaint();
+        m_buttonsPanel.add(openButton);
+
+        m_buttonsPanel.revalidate();
+      } else {
+        Calendar toDay = Calendar.getInstance();
+        int difference = m_thisCard.getTineDifference();
+        Calendar newDate = Calendar.getInstance();
+        if (difference == 0) {
+          newDate.add(5, 1);
+        } else {
+          newDate.add(5, difference + 1);
+        }
+        m_thisCard.setUnlocksDate(newDate);
+        m_thisCard.setCheckedDate(toDay);
+
+        finishStudying();
+      }
     }
   };
 
   class MistakeListener implements ActionListener {
     public void actionPerformed(ActionEvent event) {
       Calendar toDay = Calendar.getInstance();
+      m_thisCard.setCheckedDate(toDay);
+      m_thisCard.setUnlocksDate(toDay);
+
+      //CardState mistake = m_thisCard;
+      m_studyingCards.add(m_thisCard);
+      upDateStudyList();
+
+      m_questionArea.setText(m_thisCard.getQuestion());
+      m_answerArea.setText("");
 
       m_buttonsPanel.removeAll();
       m_buttonsPanel.repaint();

@@ -1,4 +1,5 @@
 import java.io.*;
+import java.net.*;
 
 import javax.swing.*;
 import javax.swing.border.*;
@@ -9,23 +10,27 @@ import java.awt.event.*;
 import java.util.Vector;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 
 
 public class SmartCardsClient extends WindowAdapter {
   private JFrame m_main;
+  private boolean m_connection = false;
   private JTextArea m_stateLabel;
   private JList<String> m_casesList;
   private ArrayList<CardCase> m_cases;
-  private Account m_account;
+
   private File m_path;
+  private String m_userName;
+  private boolean m_userMode;
+
   private Thread m_synchronizator;
 
   public SmartCardsClient() {
     m_synchronizator = new Thread(new SmartCardsSychronizator());
     m_cases = new ArrayList<CardCase>(0);
     setUpFileSystem();
-    //setAccount();
-    //setUpNetworking();
+    setUpAccount();
   }
 
   public void go() {
@@ -44,19 +49,20 @@ public class SmartCardsClient extends WindowAdapter {
     m_main.setVisible(true);
   }
 
+  private void setUpAccount() {
+    m_userName = "Guest";
+    m_userMode = false;
+  }
+
   private void setUpFileSystem() {
-   /* if accaunt == guest ...{
-
-    } else {
-
-    }*/
-
-    m_path = new File("guest.ser");
+    m_path = new File("local.ser");
     try {
       if (!m_path.exists()) {
         m_path.createNewFile();
       } else {
         ObjectInputStream instream = new ObjectInputStream(new FileInputStream(m_path));
+
+        Date uploadedVersion = (Date) instream.readObject();
         m_cases = (ArrayList<CardCase>) instream.readObject();
         instream.close();
       }
@@ -68,6 +74,9 @@ public class SmartCardsClient extends WindowAdapter {
   private void synch() {
     try {
         ObjectOutputStream outstream = new ObjectOutputStream(new FileOutputStream(m_path));
+        Date dateOfSynch = new Date();
+
+        outstream.writeObject(dateOfSynch);
         outstream.writeObject(m_cases);
         outstream.close();
     } catch(IOException ex) {
@@ -167,6 +176,8 @@ public class SmartCardsClient extends WindowAdapter {
     JMenu smartCards = new JMenu("Smart Cards");
     JMenuItem settings = new JMenuItem("Settings");
 
+    settings.addActionListener(new SettingsListener());
+
     smartCards.add(settings);
     menuBar.add(smartCards);
 
@@ -215,6 +226,17 @@ public class SmartCardsClient extends WindowAdapter {
     public void run() {
       updateList();
       synch();
+    }
+  };
+
+  class SettingsListener implements ActionListener {
+    OptionsWindow m_window;
+    public SettingsListener() {
+      m_window = new LoginWindow(m_main, m_userMode);
+    }
+
+    public void actionPerformed(ActionEvent event) {
+      m_window.go();
     }
   };
 
@@ -1055,6 +1077,8 @@ public class SmartCardsClient extends WindowAdapter {
 
           m_questionArea.setText("");
           m_answerArea.setText("");
+
+          m_choosed.updateCardSets();
 
           updateStatePanel(m_choosed);
           updateQuestionList();

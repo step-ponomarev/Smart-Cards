@@ -33,6 +33,10 @@ class CardState implements Serializable {
     return m_checkDate.getTime();
   }
 
+  public int getTineDifference() {
+    return (m_checkedDate.DATE - m_checkDate.DATE);  
+  }
+
   public void setCheckedDate(Calendar date) {
     m_checkedDate = date;
   }
