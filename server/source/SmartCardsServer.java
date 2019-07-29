@@ -65,7 +65,7 @@ public class SmartCardsServer {
           singUpUser();
           break;
         case "logIn":
-          logInUser();
+          logIn();
           break;
         default:
           closeConnection();
@@ -108,7 +108,7 @@ public class SmartCardsServer {
       m_clientWriter.flush();
     }
 
-    private void logInUser() {
+    private void logIn() {
       String login = null;
       String password = null;
 

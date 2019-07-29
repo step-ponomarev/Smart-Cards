@@ -5,7 +5,6 @@ import java.io.*;
 
 import java.util.ArrayList;
 import java.util.Calendar;
-//import javax.swing.border.*;
 
 public class StudyKitWindow extends WindowAdapter {
   private JFrame m_window;

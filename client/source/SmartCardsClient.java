@@ -21,16 +21,18 @@ public class SmartCardsClient extends WindowAdapter {
   private ArrayList<CardCase> m_cases;
 
   private File m_path;
+
+  private String m_guestName = "Guest";
   private String m_userName;
-  private boolean m_userMode;
+  private String m_userPassword;
 
   private Thread m_synchronizator;
 
   public SmartCardsClient() {
     m_synchronizator = new Thread(new SmartCardsSychronizator());
     m_cases = new ArrayList<CardCase>(0);
-    setUpFileSystem();
     setUpAccount();
+    setUpFileSystem();
   }
 
   public void go() {
@@ -50,8 +52,8 @@ public class SmartCardsClient extends WindowAdapter {
   }
 
   private void setUpAccount() {
-    m_userName = "Guest";
-    m_userMode = false;
+    m_userName = m_guestName;
+    m_userPassword = "";
   }
 
   private void setUpFileSystem() {
@@ -59,11 +61,23 @@ public class SmartCardsClient extends WindowAdapter {
     try {
       if (!m_path.exists()) {
         m_path.createNewFile();
+
+        ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(m_path));
+
+        out.writeObject(new Date());
+        out.writeObject(m_guestName);
+        out.writeObject(m_userPassword);
+        out.writeObject(m_cases);
+
+        out.close();
       } else {
         ObjectInputStream instream = new ObjectInputStream(new FileInputStream(m_path));
 
         Date uploadedVersion = (Date) instream.readObject();
+        m_userName = (String) instream.readObject();
+        m_userPassword = (String) instream.readObject();
         m_cases = (ArrayList<CardCase>) instream.readObject();
+
         instream.close();
       }
     } catch(Exception ex) {
@@ -77,7 +91,10 @@ public class SmartCardsClient extends WindowAdapter {
         Date dateOfSynch = new Date();
 
         outstream.writeObject(dateOfSynch);
+        outstream.writeObject(m_userName);
+        outstream.writeObject(m_userPassword);
         outstream.writeObject(m_cases);
+
         outstream.close();
     } catch(IOException ex) {
       ex.printStackTrace();
@@ -231,13 +248,38 @@ public class SmartCardsClient extends WindowAdapter {
 
   class SettingsListener implements ActionListener {
     OptionsWindow m_window;
-    public SettingsListener() {
-      m_window = new LoginWindow(m_main, m_userMode);
-    }
 
     public void actionPerformed(ActionEvent event) {
-      m_window.go();
+      String [] userData = {m_userName, m_userPassword};
+      Thread dataChanger = new Thread(new UserDataChanger(userData));
+
+      try {
+        if (!m_userName.equals(m_guestName)) {
+          m_window = new UserWindow(m_main, userData, dataChanger);
+          m_window.go();
+        } else {
+          m_window = new LoginWindow(m_main, userData, dataChanger);
+          m_window.go();
+        }
+      } catch(IOException e) {
+        System.out.println("No Connection");
+        //NoConnectionWindow noConnection = new NoConnectionWindow();
+      }
     }
+
+    class UserDataChanger implements Runnable {
+      private String [] m_UserData;
+
+      public UserDataChanger(final String [] data) {
+        m_UserData = data;
+      }
+
+      public void run () {
+        m_userName = m_UserData[0];
+        m_userPassword = m_UserData[1];
+      }
+    };
+
   };
 
   class KitStudyListener implements ActionListener {
