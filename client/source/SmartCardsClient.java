@@ -96,6 +96,26 @@ public class SmartCardsClient extends WindowAdapter {
         outstream.writeObject(m_cases);
 
         outstream.close();
+        System.out.println("Синхронезированно офлайн");
+
+        if (!m_userName.equals(m_guestName)) {
+          int code = -1;
+          try {
+            NetWorker netWorker = new NetWorker();
+            code = netWorker.synch(m_path, m_userName);
+          } catch(IOException e) {
+            NoConnectionWindow window = new NoConnectionWindow();
+            window.go();
+          }
+
+
+          if (code == 0) {
+            System.out.println("Синхронезированно онлайн");
+          } else {
+            System.out.println("Ошибка онлайн синхронизации");
+          }
+        }
+
     } catch(IOException ex) {
       ex.printStackTrace();
     }
@@ -263,7 +283,8 @@ public class SmartCardsClient extends WindowAdapter {
         }
       } catch(IOException e) {
         System.out.println("No Connection");
-        //NoConnectionWindow noConnection = new NoConnectionWindow();
+        NoConnectionWindow window = new NoConnectionWindow();
+        window.go();
       }
     }
 

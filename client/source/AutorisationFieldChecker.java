@@ -137,7 +137,7 @@ public class AutorisationFieldChecker implements Runnable {
       return false;
     }
 
-    if (password.length() > 20) {
+    if (password.length() > 30) {
       return false;
     }
 

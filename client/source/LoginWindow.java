@@ -19,8 +19,8 @@ public class LoginWindow extends OptionsWindow {
   private boolean m_key = false;
 
   public LoginWindow (JFrame main, String [] userName, Thread helper) throws IOException {
-    m_netWorker = new NetWorker();
     super(main);
+    m_netWorker = new NetWorker();
 
     m_loginField = new JTextField();
     m_passwordField = new JPasswordField();
@@ -28,8 +28,9 @@ public class LoginWindow extends OptionsWindow {
 
     m_helper = helper;
     m_userName = userName;
-    m_newUserName = new String[1];
+    m_newUserName = new String[2];
     m_newUserName[0] = m_userName[0];
+    m_newUserName[1] = m_userName[1];
 
     m_myThread = new AutorisationFieldChecker(m_loginField, m_passwordField, m_newUserName);
     m_fieldChecker = new Thread(m_myThread);
@@ -125,23 +126,30 @@ public class LoginWindow extends OptionsWindow {
       if (m_key) {
         String login = m_loginField.getText();
         String pass = m_passwordField.getText();
+        m_newUserName[1] = pass;
+        m_userName[0] = m_newUserName[0];
+        m_userName[1] = m_newUserName[1];
 
         int code = m_netWorker.singUp(login, pass);
 
         if (code == 0) {
           m_fieldChecker.stop();
           if (m_rememberCheckBox.isSelected()) {
-            m_userName[0] = m_newUserName[0];
-            m_userName[1] = pass;
             m_helper.start();
-            m_window.dispose();
-            m_parent.setEnabled(true);
-            //UserWindow window = new UserWindow(m_parent, login, pass, m_helper);
+
+            try {
+              UserWindow window = new UserWindow(m_parent, m_userName, m_helper);
+              window.go();
+            } catch(IOException e) {
+              NoConnectionWindow errorWindow = new NoConnectionWindow();
+              errorWindow.go();
+            }
           } else {
             // Окно об успешной регистрации
-            m_window.dispose();
-            m_parent.setEnabled(true);
           }
+
+          m_window.dispose();
+          m_parent.setEnabled(true);
         } else {
           // окно о неуспешной регистрации
         }
@@ -155,25 +163,35 @@ public class LoginWindow extends OptionsWindow {
       if (m_key) {
         String login = m_loginField.getText();
         String pass = m_passwordField.getText();
+        m_newUserName[1] = pass;
+        m_userName[0] = m_newUserName[0];
+        m_userName[1] = m_newUserName[1];
 
         int code = m_netWorker.logIn(login, pass);
 
         if (code == 0) {
           m_fieldChecker.stop();
           if (m_rememberCheckBox.isSelected()) {
-            m_userName[0] = m_newUserName[0];
-            m_userName[1] = pass;
             m_helper.start();
-            m_window.dispose();
-            m_parent.setEnabled(true);
-            //UserWindow window = new UserWindow(m_parent, login, pass, m_helper);
-          } else {
-            m_window.dispose();
-            m_parent.setEnabled(true);
           }
+
+          try {
+            UserWindow window = new UserWindow(m_parent, m_userName, m_helper);
+            window.go();
+          } catch(IOException e) {
+            NoConnectionWindow errorWindow = new NoConnectionWindow();
+            errorWindow.go();
+          }
+          m_window.dispose();
+          m_parent.setEnabled(true);
         } else {
-          m_loginField.setText("");
-          m_passwordField.setText("");
+          try {
+            m_netWorker = new NetWorker();
+            m_loginField.setText("");
+            m_passwordField.setText("");
+          } catch(IOException e) {
+            e.printStackTrace();
+          }
         }
       }
     }

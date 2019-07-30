@@ -22,6 +22,22 @@ public class Account implements Serializable, Comparable<Account> {
     return m_login;
   }
 
+  public void setLogin(final String login) {
+    if (login == null) {
+      throw new NullPointerException("Null login");
+    }
+
+    m_login = login;
+  }
+
+  public void setPass(final String pass) {
+    if (pass == null) {
+      throw new NullPointerException("Null pass");
+    }
+
+    m_password = pass;
+  }
+
   public int compareTo(Account another) {
     return m_login.compareTo(another.getLogin());
   }
